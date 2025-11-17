@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Câmera - Escaneamento de Produtos</title>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+
+    h1 {
+      color: #667eea;
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 2.5em;
+    }
+
+    .camera-section {
+      margin-bottom: 30px;
+    }
+
+    video {
+      width: 100%;
+      max-width: 640px;
+      height: auto;
+      border-radius: 15px;
+      display: block;
+      margin: 0 auto 20px;
+      background: #000;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }
+
+    canvas {
+      display: none;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin: 20px 0;
+    }
+
+    button {
+      padding: 15px 30px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-3px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .btn-success {
+      background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+      color: white;
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+      color: white;
+    }
+
+    .btn-warning {
+      background: linear-gradient(135deg, #f39c12 0%, #f1c40f 100%);
+      color: white;
+    }
+
+    .resultado {
+      margin-top: 20px;
+      padding: 20px;
+      border-radius: 15px;
+      display: none;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .resultado.sucesso {
+      background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);
+      border: 3px solid #38ef7d;
+    }
+
+    .resultado.alerta {
+      background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+      border: 3px solid #f45c43;
+    }
+
+    .resultado.erro {
+      background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+      border: 3px solid #eb3349;
+    }
+
+    .produto-detalhes {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-top: 15px;
+    }
+
+    .detalhe-item {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+
+    .detalhe-label {
+      font-size: 0.85em;
+      color: #666;
+      font-weight: bold;
+      margin-bottom: 5px;
+    }
+
+    .detalhe-valor {
+      font-size: 1.3em;
+      color: #667eea;
+      font-weight: bold;
+    }
+
+    .form-cadastro {
+      display: none;
+      margin-top: 20px;
+      padding: 25px;
+      background: #f8f9fa;
+      border-radius: 15px;
+      border: 2px dashed #667eea;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .instrucoes {
+      background: #e7f3ff;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 20px;
+      border-left: 4px solid #667eea;
+    }
+
+    .instrucoes h3 {
+      color: #667eea;
+      margin-bottom: 10px;
+    }
+
+    .instrucoes ol {
+      margin-left: 20px;
+      color: #333;
+    }
+
+    .instrucoes li {
+      margin-bottom: 8px;
+    }
+
+    .scan-indicator {
+      text-align: center;
+      padding: 10px;
+      background: #d4fc79;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      font-weight: bold;
+      color: #2d5016;
+      display: none;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>📷 Câmera - Escaneamento de Produtos</h1>
+
+    <div class="instrucoes">
+      <h3>📋 Como Funciona:</h3>
+      <ol>
+        <li><strong>Iniciar Câmera:</strong> Clique em "📷 Ativar Câmera"</li>
+        <li><strong>Posicionar Produto:</strong> Aponte a câmera para o produto</li>
+        <li><strong>Escanear:</strong> Clique em "🔎 Escanear Produto" para identificar</li>
+        <li><strong>Produto Encontrado:</strong> Veja nome, localização e quantidade</li>
+        <li><strong>Produto Não Encontrado:</strong> Preencha o formulário para cadastrar</li>
+      </ol>
+    </div>
+
+    <div class="camera-section">
+      <video id="video" autoplay playsinline></video>
+      <canvas id="canvas"></canvas>
+
+      <div class="scan-indicator" id="scanIndicator">
+        ⏺️ Câmera Ativada - Pronto para Escanear
+      </div>
+
+      <div class="controls">
+        <button class="btn-primary" id="btnIniciarCamera">📷 Ativar Câmera</button>
+        <button class="btn-success" id="btnEscanear" disabled>🔎 Escanear Produto</button>
+        <button class="btn-danger" id="btnPararCamera" disabled>⏹️ Parar Câmera</button>
+        <a href="{{ url_for('inicio') }}"><button class="btn-warning">🏠 Voltar ao Início</button></a>
+      </div>
+
+      <div id="resultado" class="resultado"></div>
+
+      <div id="formCadastro" class="form-cadastro">
+        <h3 style="color: #667eea; margin-bottom: 15px;">📝 Cadastrar Novo Produto</h3>
+        <p style="color: #666; margin-bottom: 15px;">
+          ⚠️ A foto capturada será salva para reconhecimento futuro
+        </p>
+        
+        <div class="form-group">
+          <label>Nome do Produto *</label>
+          <input type="text" id="inputNome" placeholder="Ex: Mouse Logitech" required>
+        </div>
+        <div class="form-group">
+          <label>Localização *</label>
+          <input type="text" id="inputLocalizacao" placeholder="Ex: Prateleira A1, Corredor 3" required>
+        </div>
+        <div class="form-group">
+          <label>Quantidade *</label>
+          <input type="number" id="inputQuantidade" min="0" placeholder="Ex: 50" required>
+        </div>
+        <div class="form-group">
+          <label>Preço (R$)</label>
+          <input type="number" id="inputPreco" step="0.01" min="0" placeholder="Ex: 89.90">
+        </div>
+        <div class="form-group">
+          <label>Categoria</label>
+          <select id="inputCategoria">
+            <option>Geral</option>
+            <option>Eletrônicos</option>
+            <option>Alimentos</option>
+            <option>Vestuário</option>
+            <option>Ferramentas</option>
+            <option>Limpeza</option>
+          </select>
+        </div>
+
+        <div class="controls">
+          <button class="btn-success" id="btnConfirmarCadastro">✅ Cadastrar Produto</button>
+          <button class="btn-danger" id="btnCancelarCadastro">❌ Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const btnIniciarCamera = document.getElementById('btnIniciarCamera');
+    const btnEscanear = document.getElementById('btnEscanear');
+    const btnPararCamera = document.getElementById('btnPararCamera');
+    const scanIndicator = document.getElementById('scanIndicator');
+    const resultado = document.getElementById('resultado');
+    const formCadastro = document.getElementById('formCadastro');
+
+    let stream = null;
+    let imagemCapturada = null;
+    let escanearContinuamente = false;
+    let ultimoCodigoLido = null;
+
+    // ===== CÂMERA =====
+    btnIniciarCamera.addEventListener('click', async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            facingMode: 'environment',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          } 
+        });
+        
+        video.srcObject = stream;
+        
+        btnIniciarCamera.disabled = true;
+        btnEscanear.disabled = false;
+        btnPararCamera.disabled = false;
+        scanIndicator.style.display = 'block';
+        
+        // Inicia escaneamento contínuo de QR Code
+        escanearContinuamente = true;
+        escanearQRCodeContinuamente();
+        
+        alert('✅ Câmera ativada!\n\n💡 O sistema vai detectar QR Code automaticamente.\n\nOu clique em "Escanear Produto" para capturar manualmente.');
+      } catch (error) {
+        alert('❌ Erro ao acessar câmera: ' + error.message);
+      }
+    });
+
+    btnPararCamera.addEventListener('click', () => {
+      if (stream) {
+        escanearContinuamente = false;
+        stream.getTracks().forEach(track => track.stop());
+        video.srcObject = null;
+        
+        btnIniciarCamera.disabled = false;
+        btnEscanear.disabled = true;
+        btnPararCamera.disabled = true;
+        scanIndicator.style.display = 'none';
+        resultado.style.display = 'none';
+        formCadastro.style.display = 'none';
+      }
+    });
+
+    // ===== ESCANEAMENTO CONTÍNUO DE QR CODE =====
+    function escanearQRCodeContinuamente() {
+      if (!escanearContinuamente) return;
+      
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height);
+        
+        if (code && code.data) {
+          const codigoLido = code.data;
+          
+          // Evita escanear o mesmo código repetidamente
+          if (codigoLido !== ultimoCodigoLido) {
+            ultimoCodigoLido = codigoLido;
+            console.log('📱 QR Code detectado:', codigoLido);
+            buscarProdutoPorCodigo(codigoLido);
+          }
+        }
+      }
+      
+      requestAnimationFrame(escanearQRCodeContinuamente);
+    }
+
+    async function buscarProdutoPorCodigo(codigo) {
+      try {
+        resultado.className = 'resultado alerta';
+        resultado.style.display = 'block';
+        resultado.innerHTML = '<p style="text-align: center;">🔄 QR Code detectado! Buscando produto...</p>';
+
+        const response = await fetch('/api/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ codigo: codigo })
+        });
+
+        const data = await response.json();
+
+        if (data.status === 'encontrado') {
+          mostrarProdutoEncontrado(data);
+        } else if (data.status === 'nao_encontrado') {
+          mostrarProdutoNaoEncontrado(data);
+        } else {
+          mostrarErro(data.mensagem);
+        }
+      } catch (error) {
+        console.error('Erro ao buscar produto:', error);
+      }
+    }
+
+    // ===== ESCANEAMENTO MANUAL =====
+    btnEscanear.addEventListener('click', async () => {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      ctx.drawImage(video, 0, 0);
+      
+      imagemCapturada = canvas.toDataURL('image/jpeg', 0.8);
+      
+      btnEscanear.disabled = true;
+      resultado.className = 'resultado alerta';
+      resultado.style.display = 'block';
+      resultado.innerHTML = '<p style="text-align: center;">🔄 Analisando imagem capturada...</p>';
+
+      try {
+        const response = await fetch('/api/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imagem: imagemCapturada })
+        });
+
+        const data = await response.json();
+
+        if (data.status === 'encontrado') {
+          mostrarProdutoEncontrado(data);
+        } else if (data.status === 'nao_encontrado') {
+          mostrarProdutoNaoEncontrado(data);
+        } else {
+          mostrarErro(data.mensagem);
+        }
+      } catch (error) {
+        mostrarErro('Erro ao conectar com servidor: ' + error.message);
+      } finally {
+        btnEscanear.disabled = false;
+      }
+    });
+
+    function mostrarProdutoEncontrado(data) {
+      const p = data.produto;
+      resultado.className = 'resultado sucesso';
+      resultado.style.display = 'block';
+      formCadastro.style.display = 'none';
+
+      resultado.innerHTML = `
+        <h3 style="color: #2d5016; margin-bottom: 15px;">${data.mensagem}</h3>
+        <div class="produto-detalhes">
+          <div class="detalhe-item">
+            <div class="detalhe-label">📦 Nome</div>
+            <div class="detalhe-valor">${p.nome}</div>
+          </div>
+          <div class="detalhe-item">
+            <div class="detalhe-label">📍 Localização</div>
+            <div class="detalhe-valor">${p.localizacao}</div>
+          </div>
+          <div class="detalhe-item">
+            <div class="detalhe-label">🔢 Quantidade</div>
+            <div class="detalhe-valor">${p.quantidade} unidades</div>
+          </div>
+          <div class="detalhe-item">
+            <div class="detalhe-label">💰 Preço</div>
+            <div class="detalhe-valor">R$ ${p.preco.toFixed(2)}</div>
+          </div>
+          <div class="detalhe-item">
+            <div class="detalhe-label">🏷️ Categoria</div>
+            <div class="detalhe-valor">${p.categoria}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function mostrarProdutoNaoEncontrado(data) {
+      resultado.className = 'resultado alerta';
+      resultado.style.display = 'block';
+      formCadastro.style.display = 'block';
+
+      resultado.innerHTML = `
+        <h3 style="color: #8b4513; margin-bottom: 10px;">${data.alerta}</h3>
+        <p style="color: #333; font-size: 1.1em;">${data.mensagem}</p>
+        <p style="margin-top: 10px; font-weight: bold; color: #8b4513;">
+          👇 Preencha os dados abaixo para cadastrar este produto
+        </p>
+      `;
+    }
+
+    function mostrarErro(mensagem) {
+      resultado.className = 'resultado erro';
+      resultado.style.display = 'block';
+      formCadastro.style.display = 'none';
+
+      resultado.innerHTML = `
+        <h3 style="color: #8b0000;">❌ Erro</h3>
+        <p style="color: #333;">${mensagem}</p>
+      `;
+    }
+
+    // ===== CADASTRO =====
+    document.getElementById('btnConfirmarCadastro').addEventListener('click', async () => {
+      const nome = document.getElementById('inputNome').value.trim();
+      const localizacao = document.getElementById('inputLocalizacao').value.trim();
+      const quantidade = document.getElementById('inputQuantidade').value;
+      const preco = document.getElementById('inputPreco').value || 0;
+      const categoria = document.getElementById('inputCategoria').value;
+
+      if (!nome || !localizacao || !quantidade) {
+        alert('⚠️ Preencha todos os campos obrigatórios (*)');
+        return;
+      }
+
+      if (!imagemCapturada) {
+        alert('⚠️ Nenhuma imagem capturada. Escaneie novamente.');
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/cadastrar_scanner', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nome,
+            localizacao,
+            quantidade: parseInt(quantidade),
+            preco: parseFloat(preco),
+            categoria,
+            imagem_base64: imagemCapturada
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.status === 'sucesso') {
+          const qrUrl = result.qrcode_url;
+          
+          const modalQR = `
+            <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; display: flex; align-items: center; justify-content: center;" id="modalQR">
+              <div style="background: white; padding: 40px; border-radius: 20px; text-align: center; max-width: 600px;">
+                <h2 style="color: #38ef7d; margin-bottom: 20px;">✅ ${result.mensagem}</h2>
+                <p style="margin-bottom: 15px; color: #333; font-size: 1.2em;"><strong>Código:</strong> <span style="font-size: 2em; color: #667eea;">${result.codigo}</span></p>
+                <img src="${qrUrl}" style="width: 300px; height: 300px; border: 4px solid #667eea; border-radius: 15px; margin: 20px 0; box-shadow: 0 10px 30px rgba(0,0,0,0.2);">
+                <p style="color: #666; margin: 20px 0; line-height: 1.6;"><strong>📋 Instruções:</strong><br>${result.instrucao}</p>
+                <div style="display: flex; gap: 15px; justify-content: center; margin-top: 25px;">
+                  <a href="${qrUrl}" download="qrcode_${result.codigo}.png" style="padding: 15px 30px; background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; text-decoration: none; border-radius: 10px; font-weight: bold;">📥 Baixar QR Code</a>
+                  <button onclick="document.getElementById('modalQR').remove(); location.reload();" style="padding: 15px 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;">✅ Fechar e Testar</button>
+                </div>
+                <p style="margin-top: 20px; color: #999; font-size: 0.9em;">💡 Imprima o QR Code e cole no produto físico</p>
+              </div>
+            </div>
+          `;
+          
+          document.body.insertAdjacentHTML('beforeend', modalQR);
+          
+          formCadastro.style.display = 'none';
+          document.getElementById('inputNome').value = '';
+          document.getElementById('inputLocalizacao').value = '';
+          document.getElementById('inputQuantidade').value = '';
+          document.getElementById('inputPreco').value = '';
+        } else {
+          alert('❌ ' + result.mensagem);
+        }
+      } catch (error) {
+        alert('❌ Erro ao cadastrar: ' + error.message);
+      }
+    });
+
+    document.getElementById('btnCancelarCadastro').addEventListener('click', () => {
+      formCadastro.style.display = 'none';
+    });
+  </script>
+</body>
+</html>

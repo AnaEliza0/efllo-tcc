@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanner de Produtos - API em Tempo Real</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .scanner-container {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .camera-section {
+            position: relative;
+            margin-bottom: 30px;
+        }
+
+        #video {
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            border-radius: 15px;
+            display: block;
+            margin: 0 auto;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        #canvas {
+            display: none;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 16px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+            color: white;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-section {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 15px;
+            display: none;
+        }
+
+        .result-success {
+            background: linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%);
+            border: 3px solid #38ef7d;
+        }
+
+        .result-warning {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            border: 3px solid #f45c43;
+        }
+
+        .result-error {
+            background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+            border: 3px solid #eb3349;
+        }
+
+        .produto-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .info-item {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        .info-label {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+
+        .info-value {
+            font-size: 1.2em;
+            color: #333;
+        }
+
+        .alerta {
+            background: #fff3cd;
+            border: 2px solid #ffc107;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 15px;
+            text-align: center;
+        }
+
+        .alerta h3 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .status {
+            text-align: center;
+            padding: 10px;
+            margin-top: 15px;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+
+        .status.scanning {
+            background: #cfe2ff;
+            color: #084298;
+        }
+
+        .produto-imagem {
+            max-width: 200px;
+            border-radius: 10px;
+            margin-top: 10px;
+        }
+
+        #cadastroForm {
+            display: none;
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Scanner de Produtos em Tempo Real</h1>
+
+        <div class="scanner-container">
+            <div class="camera-section">
+                <video id="video" autoplay></video>
+                <canvas id="canvas"></canvas>
+            </div>
+
+            <div class="controls">
+                <button class="btn-primary" id="startCamera">📷 Iniciar Câmera</button>
+                <button class="btn-success" id="scanButton" disabled>🔎 Escanear Produto</button>
+                <button class="btn-danger" id="stopCamera" disabled>⏹️ Parar Câmera</button>
+            </div>
+
+            <div id="status"></div>
+            <div id="resultado" class="result-section"></div>
+            
+            <div id="cadastroForm">
+                <h3>📝 Cadastrar Novo Produto</h3>
+                <div class="form-group">
+                    <label>Nome do Produto:</label>
+                    <input type="text" id="nomeProduto" required>
+                </div>
+                <div class="form-group">
+                    <label>Quantidade:</label>
+                    <input type="number" id="quantidadeProduto" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label>Preço (R$):</label>
+                    <input type="number" id="precoProduto" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Coluna:</label>
+                    <input type="number" id="colunaProduto" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label>Linha:</label>
+                    <input type="number" id="linhaProduto" min="1" required>
+                </div>
+                <div class="form-group">
+                    <label>Posição:</label>
+                    <select id="posicaoProduto" required>
+                        <option value="">Selecione...</option>
+                        <option value="Esquerda">Esquerda</option>
+                        <option value="Centro">Centro</option>
+                        <option value="Direita">Direita</option>
+                    </select>
+                </div>
+                <button class="btn-success" id="confirmarCadastro">✅ Cadastrar Produto</button>
+                <button class="btn-danger" id="cancelarCadastro">❌ Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('startCamera');
+        const scanBtn = document.getElementById('scanButton');
+        const stopBtn = document.getElementById('stopCamera');
+        const statusDiv = document.getElementById('status');
+        const resultadoDiv = document.getElementById('resultado');
+        const cadastroForm = document.getElementById('cadastroForm');
+
+        let stream = null;
+        let imagemCapturada = null;
+
+        startBtn.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'environment' } 
+                });
+                video.srcObject = stream;
+                
+                startBtn.disabled = true;
+                scanBtn.disabled = false;
+                stopBtn.disabled = false;
+                
+                mostrarStatus('Câmera ativada! Aponte para o produto e clique em Escanear.', 'scanning');
+            } catch (error) {
+                alert('Erro ao acessar câmera: ' + error.message);
+            }
+        });
+
+        scanBtn.addEventListener('click', async () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0);
+            
+            const imagemBase64 = canvas.toDataURL('image/jpeg');
+            imagemCapturada = imagemBase64;
+            
+            mostrarStatus('🔄 Processando imagem...', 'scanning');
+            scanBtn.disabled = true;
+
+            try {
+                const response = await fetch('/api/escanear', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ imagem: imagemBase64 })
+                });
+
+                const data = await response.json();
+                
+                if (data.encontrado) {
+                    mostrarProdutoEncontrado(data.produto);
+                } else {
+                    mostrarProdutoNaoCadastrado(data);
+                }
+            } catch (error) {
+                mostrarErro('Erro ao escanear: ' + error.message);
+            } finally {
+                scanBtn.disabled = false;
+            }
+        });
+
+        stopBtn.addEventListener('click', () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                
+                startBtn.disabled = false;
+                scanBtn.disabled = true;
+                stopBtn.disabled = true;
+                
+                statusDiv.innerHTML = '';
+                resultadoDiv.style.display = 'none';
+            }
+        });
+
+        document.getElementById('confirmarCadastro').addEventListener('click', async () => {
+            const dados = {
+                nome: document.getElementById('nomeProduto').value,
+                quantidade: document.getElementById('quantidadeProduto').value,
+                preco: document.getElementById('precoProduto').value,
+                coluna: document.getElementById('colunaProduto').value,
+                linha: document.getElementById('linhaProduto').value,
+                posicao: document.getElementById('posicaoProduto').value,
+                imagem: imagemCapturada
+            };
+
+            if (!dados.nome || !dados.quantidade || !dados.preco || !dados.coluna || !dados.linha || !dados.posicao) {
+                alert('Por favor, preencha todos os campos!');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/cadastrar_produto_escaneado', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(dados)
+                });
+
+                const result = await response.json();
+
+                if (result.sucesso) {
+                    alert('✅ ' + result.mensagem);
+                    cadastroForm.style.display = 'none';
+                    resultadoDiv.style.display = 'none';
+                    limparFormulario();
+                } else {
+                    alert('❌ Erro: ' + result.erro);
+                }
+            } catch (error) {
+                alert('Erro ao cadastrar: ' + error.message);
+            }
+        });
+
+        document.getElementById('cancelarCadastro').addEventListener('click', () => {
+            cadastroForm.style.display = 'none';
+            limparFormulario();
+        });
+
+        function mostrarProdutoEncontrado(produto) {
+            resultadoDiv.className = 'result-section result-success';
+            resultadoDiv.style.display = 'block';
+            cadastroForm.style.display = 'none';
+            
+            let imagemHTML = '';
+            if (produto.imagem) {
+                imagemHTML = `<img src="data:image/png;base64,${produto.imagem}" class="produto-imagem" alt="${produto.nome}">`;
+            }
+
+            resultadoDiv.innerHTML = `
+                <h2>✅ Produto Encontrado!</h2>
+                ${imagemHTML}
+                <div class="produto-info">
+                    <div class="info-item">
+                        <div class="info-label">Nome</div>
+                        <div class="info-value">${produto.nome}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Quantidade</div>
+                        <div class="info-value">${produto.quantidade} unidades</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Preço</div>
+                        <div class="info-value">R$ ${produto.preco.toFixed(2)}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Localização</div>
+                        <div class="info-value">${produto.localizacao}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Coluna</div>
+                        <div class="info-value">${produto.coluna || 'N/A'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Nível</div>
+                        <div class="info-value">${produto.nivel || 'N/A'}</div>
+                    </div>
+                </div>
+            `;
+            statusDiv.innerHTML = '';
+        }
+
+        function mostrarProdutoNaoCadastrado(data) {
+            resultadoDiv.className = 'result-section result-warning';
+            resultadoDiv.style.display = 'block';
+            cadastroForm.style.display = 'block';
+            
+            resultadoDiv.innerHTML = `
+                <div class="alerta">
+                    <h3>${data.alerta}</h3>
+                    <p>${data.mensagem}</p>
+                    <p style="margin-top: 10px; font-weight: bold;">Por favor, preencha os dados abaixo para cadastrar o produto.</p>
+                </div>
+            `;
+            statusDiv.innerHTML = '';
+        }
+
+        function mostrarErro(mensagem) {
+            resultadoDiv.className = 'result-section result-error';
+            resultadoDiv.style.display = 'block';
+            resultadoDiv.innerHTML = `
+                <h2>❌ Erro</h2>
+                <p>${mensagem}</p>
+            `;
+            statusDiv.innerHTML = '';
+        }
+
+        function mostrarStatus(mensagem, classe) {
+            statusDiv.className = 'status ' + classe;
+            statusDiv.innerHTML = mensagem;
+        }
+
+        function limparFormulario() {
+            document.getElementById('nomeProduto').value = '';
+            document.getElementById('quantidadeProduto').value = '';
+            document.getElementById('precoProduto').value = '';
+            document.getElementById('colunaProduto').value = '';
+            document.getElementById('linhaProduto').value = '';
+            document.getElementById('posicaoProduto').value = '';
+        }
+    </script>
+</body>
+</html>
